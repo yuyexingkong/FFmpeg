@@ -22,6 +22,7 @@
 #include "libavutil/avstring.h"
 #include "libavutil/internal.h"
 #include "libavutil/opt.h"
+#include "libavutil/fstream.h"
 #include "avformat.h"
 #include <fcntl.h>
 #if HAVE_IO_H
@@ -83,7 +84,7 @@ static int file_read(URLContext *h, unsigned char *buf, int size)
     FileContext *c = h->priv_data;
     int r;
     size = FFMIN(size, c->blocksize);
-    r = read(c->fd, buf, size);
+    r = ff_read(c->fd, buf, size);
     return (-1 == r)?AVERROR(errno):r;
 }
 
@@ -214,7 +215,7 @@ static int64_t file_seek(URLContext *h, int64_t pos, int whence)
         return ret < 0 ? AVERROR(errno) : (S_ISFIFO(st.st_mode) ? 0 : st.st_size);
     }
 
-    ret = lseek(c->fd, pos, whence);
+    ret = ff_seek(c->fd, pos, whence);
 
     return ret < 0 ? AVERROR(errno) : ret;
 }

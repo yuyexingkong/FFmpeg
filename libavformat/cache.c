@@ -32,6 +32,7 @@
 #include "libavutil/file.h"
 #include "libavutil/opt.h"
 #include "libavutil/tree.h"
+#include "libavutil/fstream.h"
 #include "avformat.h"
 #include <fcntl.h>
 #if HAVE_IO_H
@@ -99,7 +100,7 @@ static int add_entry(URLContext *h, const unsigned char *buf, int size)
     struct AVTreeNode *node = NULL;
 
     //FIXME avoid lseek
-    pos = lseek(c->fd, 0, SEEK_END);
+    pos = ff_seek(c->fd, 0, SEEK_END);
     if (pos < 0) {
         ret = AVERROR(errno);
         av_log(h, AV_LOG_ERROR, "seek in cache failed\n");
@@ -170,13 +171,13 @@ static int cache_read(URLContext *h, unsigned char *buf, int size)
             int64_t physical_target = entry->physical_pos + in_block_pos;
 
             if (c->cache_pos != physical_target) {
-                r = lseek(c->fd, physical_target, SEEK_SET);
+                r = ff_seek(c->fd, physical_target, SEEK_SET);
             } else
                 r = c->cache_pos;
 
             if (r >= 0) {
                 c->cache_pos = r;
-                r = read(c->fd, buf, FFMIN(size, entry->size - in_block_pos));
+                r = ff_read(c->fd, buf, FFMIN(size, entry->size - in_block_pos));
             }
 
             if (r > 0) {

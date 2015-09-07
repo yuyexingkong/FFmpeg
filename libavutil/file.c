@@ -35,6 +35,8 @@
 #include <windows.h>
 #endif
 
+#include "fstream.h"
+
 typedef struct FileLogContext {
     const AVClass *class;
     int   log_offset;
@@ -119,7 +121,7 @@ int av_file_map(const char *filename, uint8_t **bufptr, size_t *size,
         close(fd);
         return AVERROR(ENOMEM);
     }
-    read(fd, *bufptr, *size);
+    ff_read(fd, *bufptr, *size);
 #endif
 
     close(fd);
