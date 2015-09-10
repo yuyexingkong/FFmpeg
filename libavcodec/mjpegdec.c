@@ -288,9 +288,6 @@ int ff_mjpeg_decode_sof(MJpegDecodeContext *s)
     height = get_bits(&s->gb, 16);
     width  = get_bits(&s->gb, 16);
 
-    if (s->avctx->codec_id == AV_CODEC_ID_AMV && (height&15))
-        avpriv_request_sample(s->avctx, "non mod 16 height AMV\n");
-
     // HACK for odd_height.mov
     if (s->interlaced && s->width == width && s->height == height + 1)
         height= s->height;
@@ -345,6 +342,12 @@ int ff_mjpeg_decode_sof(MJpegDecodeContext *s)
                i, h_count[i], v_count[i],
                s->component_id[i], s->quant_index[i]);
     }
+    if (   nb_components == 4
+        && s->component_id[0] == 'C' - 1
+        && s->component_id[1] == 'M' - 1
+        && s->component_id[2] == 'Y' - 1
+        && s->component_id[3] == 'K' - 1)
+        s->adobe_transform = 0;
 
     if (s->ls && (s->h_max > 1 || s->v_max > 1)) {
         avpriv_report_missing_feature(s->avctx, "Subsampling in JPEG-LS");
@@ -672,6 +675,7 @@ static int decode_block(MJpegDecodeContext *s, int16_t *block, int component,
         return AVERROR_INVALIDDATA;
     }
     val = val * quant_matrix[0] + s->last_dc[component];
+    val = FFMIN(val, 32767);
     s->last_dc[component] = val;
     block[0] = val;
     /* AC coefs */
@@ -1904,7 +1908,7 @@ int ff_mjpeg_find_marker(MJpegDecodeContext *s,
         *unescaped_buf_ptr  = s->buffer;
         *unescaped_buf_size = dst - s->buffer;
         memset(s->buffer + *unescaped_buf_size, 0,
-               FF_INPUT_BUFFER_PADDING_SIZE);
+               AV_INPUT_BUFFER_PADDING_SIZE);
 
         av_log(s->avctx, AV_LOG_DEBUG, "escaping removed %"PTRDIFF_SPECIFIER" bytes\n",
                (buf_end - *buf_ptr) - (dst - s->buffer));
@@ -1949,7 +1953,7 @@ int ff_mjpeg_find_marker(MJpegDecodeContext *s,
         *unescaped_buf_ptr  = dst;
         *unescaped_buf_size = (bit_count + 7) >> 3;
         memset(s->buffer + *unescaped_buf_size, 0,
-               FF_INPUT_BUFFER_PADDING_SIZE);
+               AV_INPUT_BUFFER_PADDING_SIZE);
     } else {
         *unescaped_buf_ptr  = *buf_ptr;
         *unescaped_buf_size = buf_end - *buf_ptr;
@@ -2058,6 +2062,7 @@ int ff_mjpeg_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
                 goto fail;
             break;
         case SOF3:
+            s->avctx->properties |= FF_CODEC_PROPERTY_LOSSLESS;
             s->lossless    = 1;
             s->ls          = 0;
             s->progressive = 0;
@@ -2065,6 +2070,7 @@ int ff_mjpeg_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
                 goto fail;
             break;
         case SOF48:
+            s->avctx->properties |= FF_CODEC_PROPERTY_LOSSLESS;
             s->lossless    = 1;
             s->ls          = 1;
             s->progressive = 0;
@@ -2152,7 +2158,7 @@ fail:
     return ret;
 the_end:
 
-    is16bit = av_pix_fmt_desc_get(s->avctx->pix_fmt)->comp[0].step_minus1;
+    is16bit = av_pix_fmt_desc_get(s->avctx->pix_fmt)->comp[0].step > 1;
 
     if (AV_RB32(s->upscale_h)) {
         int p;
@@ -2401,7 +2407,7 @@ AVCodec ff_mjpeg_decoder = {
     .close          = ff_mjpeg_decode_end,
     .decode         = ff_mjpeg_decode_frame,
     .flush          = decode_flush,
-    .capabilities   = CODEC_CAP_DR1,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .max_lowres     = 3,
     .priv_class     = &mjpegdec_class,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
@@ -2418,7 +2424,7 @@ AVCodec ff_thp_decoder = {
     .close          = ff_mjpeg_decode_end,
     .decode         = ff_mjpeg_decode_frame,
     .flush          = decode_flush,
-    .capabilities   = CODEC_CAP_DR1,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .max_lowres     = 3,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

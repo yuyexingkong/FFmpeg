@@ -60,6 +60,7 @@ void av_register_all(void)
 
     /* (de)muxers */
     REGISTER_MUXER   (A64,              a64);
+    REGISTER_DEMUXER (AA,               aa);
     REGISTER_DEMUXER (AAC,              aac);
     REGISTER_MUXDEMUX(AC3,              ac3);
     REGISTER_DEMUXER (ACT,              act);
@@ -351,6 +352,7 @@ void av_register_all(void)
 
 
     /* protocols */
+    REGISTER_PROTOCOL(ASYNC,            async);
     REGISTER_PROTOCOL(BLURAY,           bluray);
     REGISTER_PROTOCOL(CACHE,            cache);
     REGISTER_PROTOCOL(CONCAT,           concat);

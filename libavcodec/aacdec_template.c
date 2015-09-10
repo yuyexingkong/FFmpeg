@@ -132,7 +132,7 @@ static av_cold int che_configure(AACContext *ac,
         if (!ac->che[type][id]) {
             if (!(ac->che[type][id] = av_mallocz(sizeof(ChannelElement))))
                 return AVERROR(ENOMEM);
-            ff_aac_sbr_ctx_init(ac, &ac->che[type][id]->sbr);
+            AAC_RENAME(ff_aac_sbr_ctx_init)(ac, &ac->che[type][id]->sbr);
         }
         if (type != TYPE_CCE) {
             if (*channels >= MAX_CHANNELS - (type == TYPE_CPE || (type == TYPE_SCE && ac->oc[1].m4ac.ps == 1))) {
@@ -147,7 +147,7 @@ static av_cold int che_configure(AACContext *ac,
         }
     } else {
         if (ac->che[type][id])
-            ff_aac_sbr_ctx_close(&ac->che[type][id]->sbr);
+            AAC_RENAME(ff_aac_sbr_ctx_close)(&ac->che[type][id]->sbr);
         av_freep(&ac->che[type][id]);
     }
     return 0;
@@ -940,13 +940,18 @@ static int decode_eld_specific_config(AACContext *ac, AVCodecContext *avctx,
 static int decode_audio_specific_config(AACContext *ac,
                                         AVCodecContext *avctx,
                                         MPEG4AudioConfig *m4ac,
-                                        const uint8_t *data, int bit_size,
+                                        const uint8_t *data, int64_t bit_size,
                                         int sync_extension)
 {
     GetBitContext gb;
     int i, ret;
 
-    ff_dlog(avctx, "audio specific config size %d\n", bit_size >> 3);
+    if (bit_size < 0 || bit_size > INT_MAX) {
+        av_log(avctx, AV_LOG_ERROR, "Audio specific config size is invalid\n");
+        return AVERROR_INVALIDDATA;
+    }
+
+    ff_dlog(avctx, "audio specific config size %d\n", (int)bit_size >> 3);
     for (i = 0; i < bit_size >> 3; i++)
         ff_dlog(avctx, "%02x ", data[i]);
     ff_dlog(avctx, "\n");
@@ -1076,7 +1081,7 @@ static av_cold int aac_decode_init(AVCodecContext *avctx)
     if (avctx->extradata_size > 0) {
         if ((ret = decode_audio_specific_config(ac, ac->avctx, &ac->oc[1].m4ac,
                                                 avctx->extradata,
-                                                avctx->extradata_size * 8,
+                                                avctx->extradata_size * 8LL,
                                                 1)) < 0)
             return ret;
     } else {
@@ -1126,12 +1131,12 @@ static av_cold int aac_decode_init(AVCodecContext *avctx)
     AAC_INIT_VLC_STATIC( 9, 366);
     AAC_INIT_VLC_STATIC(10, 462);
 
-    ff_aac_sbr_init();
+    AAC_RENAME(ff_aac_sbr_init)();
 
 #if USE_FIXED
-    ac->fdsp = avpriv_alloc_fixed_dsp(avctx->flags & CODEC_FLAG_BITEXACT);
+    ac->fdsp = avpriv_alloc_fixed_dsp(avctx->flags & AV_CODEC_FLAG_BITEXACT);
 #else
-    ac->fdsp = avpriv_float_dsp_alloc(avctx->flags & CODEC_FLAG_BITEXACT);
+    ac->fdsp = avpriv_float_dsp_alloc(avctx->flags & AV_CODEC_FLAG_BITEXACT);
 #endif /* USE_FIXED */
     if (!ac->fdsp) {
         return AVERROR(ENOMEM);
@@ -2315,7 +2320,7 @@ static int decode_extension_payload(AACContext *ac, GetBitContext *gb, int cnt,
             ac->oc[1].m4ac.sbr = 1;
             ac->avctx->profile = FF_PROFILE_AAC_HE;
         }
-        res = ff_decode_sbr_extension(ac, &che->sbr, gb, crc_flag, cnt, elem_type);
+        res = AAC_RENAME(ff_decode_sbr_extension)(ac, &che->sbr, gb, crc_flag, cnt, elem_type);
         break;
     case EXT_DYNAMIC_RANGE:
         res = decode_dynamic_range(&ac->che_drc, gb);
@@ -2357,7 +2362,7 @@ static void apply_tns(INTFLOAT coef[1024], TemporalNoiseShaping *tns,
                 continue;
 
             // tns_decode_coef
-            compute_lpc_coefs(tns->coef[w][filt], order, lpc, 0, 0, 0);
+            AAC_RENAME(compute_lpc_coefs)(tns->coef[w][filt], order, lpc, 0, 0, 0);
 
             start = ics->swb_offset[FFMIN(bottom, mmm)];
             end   = ics->swb_offset[FFMIN(   top, mmm)];
@@ -2598,7 +2603,7 @@ static void imdct_and_windowing_eld(AACContext *ac, SingleChannelElement *sce)
     const int n  = ac->oc[1].m4ac.frame_length_short ? 480 : 512;
     const int n2 = n >> 1;
     const int n4 = n >> 2;
-    const INTFLOAT *const window = n == 480 ? ff_aac_eld_window_480 :
+    const INTFLOAT *const window = n == 480 ? AAC_RENAME(ff_aac_eld_window_480) :
                                            AAC_RENAME(ff_aac_eld_window_512);
 
     // Inverse transform, mapped to the conventional IMDCT by
@@ -2694,7 +2699,7 @@ static void apply_channel_coupling(AACContext *ac, ChannelElement *cc,
 /**
  * Convert spectral data to samples, applying all supported tools as appropriate.
  */
-static void spectral_to_sample(AACContext *ac)
+static void spectral_to_sample(AACContext *ac, int samples)
 {
     int i, type;
     void (*imdct_and_window)(AACContext *ac, SingleChannelElement *sce);
@@ -2738,7 +2743,7 @@ static void spectral_to_sample(AACContext *ac)
                             ac->update_ltp(ac, &che->ch[1]);
                     }
                     if (ac->oc[1].m4ac.sbr > 0) {
-                        ff_sbr_apply(ac, &che->sbr, type, che->ch[0].ret, che->ch[1].ret);
+                        AAC_RENAME(ff_sbr_apply)(ac, &che->sbr, type, che->ch[0].ret, che->ch[1].ret);
                     }
                 }
                 if (type <= TYPE_CCE)
@@ -2748,9 +2753,10 @@ static void spectral_to_sample(AACContext *ac)
                 {
                     int j;
                     /* preparation for resampler */
-                    for(j = 0; j<2048; j++){
+                    for(j = 0; j<samples; j++){
                         che->ch[0].ret[j] = (int32_t)av_clipl_int32((int64_t)che->ch[0].ret[j]<<7)+0x8000;
-                        che->ch[1].ret[j] = (int32_t)av_clipl_int32((int64_t)che->ch[1].ret[j]<<7)+0x8000;
+                        if(type == TYPE_CPE)
+                            che->ch[1].ret[j] = (int32_t)av_clipl_int32((int64_t)che->ch[1].ret[j]<<7)+0x8000;
                     }
                 }
 #endif /* USE_FIXED */
@@ -2881,7 +2887,7 @@ static int aac_decode_er_frame(AVCodecContext *avctx, void *data,
             return err;
     }
 
-    spectral_to_sample(ac);
+    spectral_to_sample(ac, samples);
 
     ac->frame->nb_samples = samples;
     ac->frame->sample_rate = avctx->sample_rate;
@@ -3029,10 +3035,10 @@ static int aac_decode_frame_int(AVCodecContext *avctx, void *data,
         return 0;
     }
 
-    spectral_to_sample(ac);
-
     multiplier = (ac->oc[1].m4ac.sbr == 1) ? ac->oc[1].m4ac.ext_sample_rate > ac->oc[1].m4ac.sample_rate : 0;
     samples <<= multiplier;
+
+    spectral_to_sample(ac, samples);
 
     if (ac->oc[1].status && audio_found) {
         avctx->sample_rate = ac->oc[1].m4ac.sample_rate << multiplier;
@@ -3098,7 +3104,7 @@ static int aac_decode_frame(AVCodecContext *avctx, void *data,
     if (new_extradata && 0) {
         av_free(avctx->extradata);
         avctx->extradata = av_mallocz(new_extradata_size +
-                                      FF_INPUT_BUFFER_PADDING_SIZE);
+                                      AV_INPUT_BUFFER_PADDING_SIZE);
         if (!avctx->extradata)
             return AVERROR(ENOMEM);
         avctx->extradata_size = new_extradata_size;
@@ -3106,7 +3112,7 @@ static int aac_decode_frame(AVCodecContext *avctx, void *data,
         push_output_configuration(ac);
         if (decode_audio_specific_config(ac, ac->avctx, &ac->oc[1].m4ac,
                                          avctx->extradata,
-                                         avctx->extradata_size*8, 1) < 0) {
+                                         avctx->extradata_size*8LL, 1) < 0) {
             pop_output_configuration(ac);
             return AVERROR_INVALIDDATA;
         }
@@ -3121,7 +3127,7 @@ static int aac_decode_frame(AVCodecContext *avctx, void *data,
     if (INT_MAX / 8 <= buf_size)
         return AVERROR_INVALIDDATA;
 
-    if ((err = init_get_bits(&gb, buf, buf_size * 8)) < 0)
+    if ((err = init_get_bits8(&gb, buf, buf_size)) < 0)
         return err;
 
     switch (ac->oc[1].m4ac.object_type) {
@@ -3153,7 +3159,7 @@ static av_cold int aac_decode_close(AVCodecContext *avctx)
     for (i = 0; i < MAX_ELEM_ID; i++) {
         for (type = 0; type < 4; type++) {
             if (ac->che[type][i])
-                ff_aac_sbr_ctx_close(&ac->che[type][i]->sbr);
+                AAC_RENAME(ff_aac_sbr_ctx_close)(&ac->che[type][i]->sbr);
             av_freep(&ac->che[type][i]);
         }
     }

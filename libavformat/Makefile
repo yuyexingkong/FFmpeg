@@ -59,6 +59,7 @@ OBJS-$(CONFIG_SHARED)                    += log2_tab.o golomb_tab.o
 
 # muxers/demuxers
 OBJS-$(CONFIG_A64_MUXER)                 += a64.o rawenc.o
+OBJS-$(CONFIG_AA_DEMUXER)                += aadec.o
 OBJS-$(CONFIG_AAC_DEMUXER)               += aacdec.o apetag.o img2.o rawdec.o
 OBJS-$(CONFIG_AC3_DEMUXER)               += ac3dec.o rawdec.o
 OBJS-$(CONFIG_AC3_MUXER)                 += rawenc.o
@@ -496,6 +497,7 @@ OBJS-$(CONFIG_LIBSSH_PROTOCOL)           += libssh.o
 OBJS-$(CONFIG_LIBSMBCLIENT_PROTOCOL)     += libsmbclient.o
 
 # protocols I/O
+OBJS-$(CONFIG_ASYNC_PROTOCOL)            += async.o
 OBJS-$(CONFIG_APPLEHTTP_PROTOCOL)        += hlsproto.o
 OBJS-$(CONFIG_BLURAY_PROTOCOL)           += bluray.o
 OBJS-$(CONFIG_CACHE_PROTOCOL)            += cache.o
@@ -545,7 +547,8 @@ SLIBOBJS-$(HAVE_GNU_WINDRES)             += avformatres.o
 SKIPHEADERS-$(CONFIG_FFRTMPCRYPT_PROTOCOL) += rtmpdh.h
 SKIPHEADERS-$(CONFIG_NETWORK)            += network.h rtsp.h
 
-TESTPROGS = seek                                                        \
+TESTPROGS = async                                                       \
+            seek                                                        \
             srtp                                                        \
             url                                                         \
 

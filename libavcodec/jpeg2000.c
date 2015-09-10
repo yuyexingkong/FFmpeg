@@ -189,7 +189,7 @@ void ff_jpeg2000_set_significance(Jpeg2000T1Context *t1, int x, int y,
     t1->flags[(y - 1) * t1->stride + x - 1] |= JPEG2000_T1_SIG_SE;
 }
 
-static const uint8_t lut_gain[2][4] = { { 0, 0, 0, 0 }, { 0, 1, 1, 2 } };
+// static const uint8_t lut_gain[2][4] = { { 0, 0, 0, 0 }, { 0, 1, 1, 2 } }; (unused)
 
 int ff_jpeg2000_init_component(Jpeg2000Component *comp,
                                Jpeg2000CodingStyle *codsty,
@@ -215,13 +215,13 @@ int ff_jpeg2000_init_component(Jpeg2000Component *comp,
             (comp->coord[1][1] - comp->coord[1][0]);
 
     if (codsty->transform == FF_DWT97) {
-        csize += FF_INPUT_BUFFER_PADDING_SIZE / sizeof(*comp->f_data);
+        csize += AV_INPUT_BUFFER_PADDING_SIZE / sizeof(*comp->f_data);
         comp->i_data = NULL;
         comp->f_data = av_mallocz_array(csize, sizeof(*comp->f_data));
         if (!comp->f_data)
             return AVERROR(ENOMEM);
     } else {
-        csize += FF_INPUT_BUFFER_PADDING_SIZE / sizeof(*comp->i_data);
+        csize += AV_INPUT_BUFFER_PADDING_SIZE / sizeof(*comp->i_data);
         comp->f_data = NULL;
         comp->i_data = av_mallocz_array(csize, sizeof(*comp->i_data));
         if (!comp->i_data)

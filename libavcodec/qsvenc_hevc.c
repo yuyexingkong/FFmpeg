@@ -36,11 +36,11 @@
 #include "qsv_internal.h"
 #include "qsvenc.h"
 
-enum {
+enum LoadPlugin {
     LOAD_PLUGIN_NONE,
     LOAD_PLUGIN_HEVC_SW,
     LOAD_PLUGIN_HEVC_HW,
-} LoadPlugin;
+};
 
 typedef struct QSVHEVCEncContext {
     AVClass *class;
@@ -140,7 +140,7 @@ static int generate_fake_vps(QSVEncContext *q, AVCodecContext *avctx)
     }
 
     vps_size = bytestream2_tell_p(&pbc);
-    new_extradata = av_mallocz(vps_size + avctx->extradata_size + FF_INPUT_BUFFER_PADDING_SIZE);
+    new_extradata = av_mallocz(vps_size + avctx->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
     if (!new_extradata)
         return AVERROR(ENOMEM);
     memcpy(new_extradata, vps_buf, vps_size);
@@ -160,7 +160,7 @@ static av_cold int qsv_enc_init(AVCodecContext *avctx)
 
     if (q->load_plugin != LOAD_PLUGIN_NONE) {
         static const char *uid_hevcenc_sw = "2fca99749fdb49aeb121a5b63ef568f7";
-        static const char *uid_hevcenc_hw = "e5400a06c74d41f5b12d430bbaa23d0b";
+        static const char *uid_hevcenc_hw = "6fadc791a0c2eb479ab6dcd5ea9da347";
 
         if (q->qsv.load_plugins[0]) {
             av_log(avctx, AV_LOG_WARNING,
@@ -263,7 +263,7 @@ AVCodec ff_hevc_qsv_encoder = {
     .init           = qsv_enc_init,
     .encode2        = qsv_enc_frame,
     .close          = qsv_enc_close,
-    .capabilities   = CODEC_CAP_DELAY,
+    .capabilities   = AV_CODEC_CAP_DELAY,
     .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
                                                     AV_PIX_FMT_QSV,
                                                     AV_PIX_FMT_NONE },
