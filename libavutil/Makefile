@@ -135,6 +135,7 @@ OBJS = adler32.o                                                        \
        utils.o                                                          \
        xga_font_data.o                                                  \
        xtea.o                                                           \
+       fstream.o                                                        \
 
 OBJS-$(!HAVE_ATOMICS_NATIVE)            += atomic.o                     \
 

@@ -187,6 +187,14 @@ typedef struct OptionDef {
     } u;
     const char *help;
     const char *argname;
+#ifdef __cplusplus
+    OptionDef(const char* n, int f, void* func, const char* h, const char* a):name(n),flags(f), help(h),argname(a) {
+        u.dst_ptr = func;
+    }
+    OptionDef(const char* n, int f, void* func, const char* h ):name(n),flags(f), help(h),argname(NULL) {
+        u.dst_ptr = func;
+    }
+#endif
 } OptionDef;
 
 /**
@@ -205,7 +213,7 @@ void show_help_options(const OptionDef *options, const char *msg, int req_flags,
  * Show help for all options with given flags in class and all its
  * children.
  */
-void show_help_children(const AVClass *class, int flags);
+void show_help_children(const AVClass *, int flags);
 
 /**
  * Per-fftool specific help handler. Implemented in each

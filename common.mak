@@ -45,6 +45,7 @@ LDFLAGS    := $(ALLFFLIBS:%=$(LD_PATH)lib%) $(LDFLAGS)
 
 define COMPILE
        $(call $(1)DEP,$(1))
+       echo $($(1)) $($(1)FLAGS) $($(1)_DEPFLAGS) $($(1)_C) $($(1)_O) $<
        $($(1)) $($(1)FLAGS) $($(1)_DEPFLAGS) $($(1)_C) $($(1)_O) $<
 endef
 
@@ -57,6 +58,9 @@ COMPILE_HOSTC = $(call COMPILE,HOSTCC)
 	$(COMPILE_C)
 
 %.o: %.cpp
+	$(COMPILE_CXX)
+
+%.cpp.o: %.cpp
 	$(COMPILE_CXX)
 
 %.o: %.m
