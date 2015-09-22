@@ -90,7 +90,7 @@ class Decoder {
     int64_t next_pts;
     AVRational next_pts_tb;
     SDL_Thread *decoder_tid;
-} ;
+};
 
 class AudioDecoder :public Decoder{
     public:

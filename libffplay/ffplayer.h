@@ -201,7 +201,15 @@ typedef struct AudioParams {
     int bytes_per_sec;
 } AudioParams;
 
-typedef struct Clock {
+class Clock {
+    public:
+        void set_clock(double pts, int serial);
+        double get_clock();
+        void set_clock_speed(double speed);
+        void set_clock_at(double pts, int serial, double time);
+        void init_clock(int *queue_serial);
+        void sync_clock_to_slave(Clock *slave);
+    public:
     double pts;           /* clock base */
     double pts_drift;     /* clock base minus time at which we updated the clock */
     double last_updated;
@@ -209,12 +217,33 @@ typedef struct Clock {
     int serial;           /* clock is based on a packet with this serial */
     int paused;
     int *queue_serial;    /* pointer to the current packet queue serial, used for obsolete clock detection */
-} Clock;
+} ;
 
 enum {
     AV_SYNC_AUDIO_MASTER, /* default choice */
     AV_SYNC_VIDEO_MASTER,
     AV_SYNC_EXTERNAL_CLOCK, /* synchronize to an external clock */
+};
+
+class PacketSource
+{
+    public:
+    int subtitle_stream;
+    AVStream *subtitle_st;
+    PacketQueue subtitleq;
+
+    int audio_stream;
+    AVStream *audio_st;
+    PacketQueue audioq;
+
+    int video_stream;
+    AVStream *video_st;
+    PacketQueue videoq;
+
+    char filename[1024];
+    int eof;
+    public:
+    static int read_thread(void *arg);
 };
 
 #include "ffdecoder.h"
@@ -250,7 +279,6 @@ typedef struct VideoState {
     int viddec_width;
     int viddec_height;
 
-    int audio_stream;
 
     int av_sync_type;
 
@@ -260,8 +288,6 @@ typedef struct VideoState {
     double audio_diff_avg_coef;
     double audio_diff_threshold;
     int audio_diff_avg_count;
-    AVStream *audio_st;
-    PacketQueue audioq;
     int audio_hw_buf_size;
     uint8_t silence_buf[SDL_AUDIO_MIN_BUFFER_SIZE];
     uint8_t *audio_buf;
@@ -289,25 +315,16 @@ typedef struct VideoState {
     int xpos;
     double last_vis_time;
 
-    int subtitle_stream;
-    AVStream *subtitle_st;
-    PacketQueue subtitleq;
-
     double frame_timer;
     double frame_last_returned_time;
     double frame_last_filter_delay;
-    int video_stream;
-    AVStream *video_st;
-    PacketQueue videoq;
     double max_frame_duration;      // maximum duration of a frame - above this, we consider the jump a timestamp discontinuity
 #if !CONFIG_AVFILTER
     struct SwsContext *img_convert_ctx;
 #endif
     struct SwsContext *sub_convert_ctx;
     SDL_Rect last_display_rect;
-    int eof;
 
-    char filename[1024];
     int width, height, xleft, ytop;
     int step;
 
@@ -320,9 +337,12 @@ typedef struct VideoState {
     AVFilterGraph *agraph;              // audio filter graph
 #endif
 
+    PacketSource packetSource;
     int last_video_stream, last_audio_stream, last_subtitle_stream;
 
     SDL_cond *continue_read_thread;
+
+    PacketSource* getPacketSource() { return &packetSource;};
 } VideoState;
 
 

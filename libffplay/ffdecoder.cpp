@@ -154,9 +154,10 @@ void Decoder::start(int (*fn)(void *), void *arg)
 void AudioDecoder::init(AVCodecContext *avctx, PacketQueue *queue, SDL_cond *empty_queue_cond, VideoState* is)
 {
     Decoder::init(avctx, queue, empty_queue_cond);
+    PacketSource* ps = is->getPacketSource();
     if ((is->ic->iformat->flags & (AVFMT_NOBINSEARCH | AVFMT_NOGENSEARCH | AVFMT_NO_BYTE_SEEK)) && !is->ic->iformat->read_seek) {
-        is->auddec.start_pts = is->audio_st->start_time;
-        is->auddec.start_pts_tb = is->audio_st->time_base;
+        is->auddec.start_pts = ps->audio_st->start_time;
+        is->auddec.start_pts_tb = ps->audio_st->time_base;
     }
     start(audio_thread, is);
 }
@@ -176,6 +177,7 @@ int cmp_audio_fmts(enum AVSampleFormat fmt1, int64_t channel_count1,
 int AudioDecoder::audio_thread(void *arg)
 {
     VideoState *is = (VideoState *) arg;
+    PacketSource* ps = is->getPacketSource();
     AVFrame *frame = av_frame_alloc();
     Frame *af;
 #if CONFIG_AVFILTER
@@ -244,7 +246,7 @@ int AudioDecoder::audio_thread(void *arg)
                 is->sampq.push();
 
 #if CONFIG_AVFILTER
-                if (is->audioq.serial != is->auddec.pkt_serial)
+                if (ps->audioq.serial != is->auddec.pkt_serial)
                     break;
             }
             if (ret == AVERROR_EOF)
@@ -264,12 +266,13 @@ int AudioDecoder::audio_thread(void *arg)
 int VideoDecoder::video_thread(void *arg)
 {
     VideoState *is = (VideoState *) arg;
+    PacketSource* ps = is->getPacketSource();
     AVFrame *frame = av_frame_alloc();
     double pts;
     double duration;
     int ret;
-    AVRational tb = is->video_st->time_base;
-    AVRational frame_rate = av_guess_frame_rate(is->ic, is->video_st, NULL);
+    AVRational tb = ps->video_st->time_base;
+    AVRational frame_rate = av_guess_frame_rate(is->ic, ps->video_st, NULL);
 
 #if CONFIG_AVFILTER
     AVFilterGraph *graph = avfilter_graph_alloc();

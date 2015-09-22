@@ -37,6 +37,7 @@ OBJS-ffmpeg-$(CONFIG_VDA)     += ffmpeg_videotoolbox.o
 endif
 OBJS-ffmpeg-$(CONFIG_VIDEOTOOLBOX) += ffmpeg_videotoolbox.o
 OBJS-ffserver                 += ffserver_config.o
+OBJS-ffplay++                 += libffplay/packet_queue.o libffplay/ffdecoder.o
 
 TESTTOOLS   = audiogen videogen rotozoom tiny_psnr tiny_ssim base64
 HOSTPROGS  := $(TESTTOOLS:%=tests/%) doc/print_options
@@ -127,7 +128,7 @@ $(PROGS): %$(PROGSSUF)$(EXESUF): %$(PROGSSUF)_g$(EXESUF)
 	echo $(LD) $(LDFLAGS) $(LDEXEFLAGS) $(LD_O) $(OBJS-$*) $(FF_EXTRALIBS)
 	$(LD) $(LDFLAGS) $(LDEXEFLAGS) $(LD_O) $(OBJS-$*) $(FF_EXTRALIBS)
 
-OBJDIRS += tools
+OBJDIRS += tools libffplay
 
 -include $(wildcard tools/*.d)
 
