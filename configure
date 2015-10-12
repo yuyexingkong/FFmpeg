@@ -4208,6 +4208,7 @@ if test "$?" != 0; then
 fi
 
 add_cppflags -D_ISOC99_SOURCE
+add_cppflags -std=gnu++11
 add_cxxflags -D__STDC_CONSTANT_MACROS
 check_cflags -std=c99
 check_cc -D_FILE_OFFSET_BITS=64 <<EOF && add_cppflags -D_FILE_OFFSET_BITS=64

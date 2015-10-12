@@ -94,24 +94,24 @@ typedef struct MyAVPacketList {
 
 class PacketQueue {
     public:
-    MyAVPacketList *first_pkt, *last_pkt;
-    int nb_packets;
-    int size;
-    int abort_request;
-    int serial;
-    SDL_mutex *mutex;
-    SDL_cond *cond;
+        MyAVPacketList *first_pkt, *last_pkt;
+        int nb_packets;
+        int size;
+        int abort_request;
+        int serial;
+        SDL_mutex *mutex;
+        SDL_cond *cond;
     public:
-    //PacketQueue(){init();  }
-    int put_private(AVPacket *pkt);
-    int put(AVPacket *pkt);
-    int get(AVPacket *pkt, int block, int *serial);
-    void start();
-    void abort();
-    void destroy();
-    void flush();
-    void init();
-    int put_nullpacket(int stream_index);
+        //PacketQueue(){init();  }
+        int put_private(AVPacket *pkt);
+        int put(AVPacket *pkt);
+        int get(AVPacket *pkt, int block, int *serial);
+        void start();
+        void abort();
+        void destroy();
+        void flush();
+        void init();
+        int put_nullpacket(int stream_index);
 };
 
 #define VIDEO_PICTURE_QUEUE_SIZE 3
@@ -137,16 +137,16 @@ class FrameQueue {
         int nb_remaining();
         int64_t last_pos();
     public:
-    Frame queue[FRAME_QUEUE_SIZE];
-    int rindex;
-    int windex;
-    int size;
-    int max_size;
-    int keep_last;
-    int rindex_shown;
-    SDL_mutex *mutex;
-    SDL_cond *cond;
-    PacketQueue *pktq;
+        Frame queue[FRAME_QUEUE_SIZE];
+        int rindex;
+        int windex;
+        int size;
+        int max_size;
+        int keep_last;
+        int rindex_shown;
+        SDL_mutex *mutex;
+        SDL_cond *cond;
+        PacketQueue *pktq;
 } ;
 
 typedef enum {
@@ -210,13 +210,13 @@ class Clock {
         void init_clock(int *queue_serial);
         void sync_clock_to_slave(Clock *slave);
     public:
-    double pts;           /* clock base */
-    double pts_drift;     /* clock base minus time at which we updated the clock */
-    double last_updated;
-    double speed;
-    int serial;           /* clock is based on a packet with this serial */
-    int paused;
-    int *queue_serial;    /* pointer to the current packet queue serial, used for obsolete clock detection */
+        double pts;           /* clock base */
+        double pts_drift;     /* clock base minus time at which we updated the clock */
+        double last_updated;
+        double speed;
+        int serial;           /* clock is based on a packet with this serial */
+        int paused;
+        int *queue_serial;    /* pointer to the current packet queue serial, used for obsolete clock detection */
 } ;
 
 enum {
@@ -224,129 +224,156 @@ enum {
     AV_SYNC_VIDEO_MASTER,
     AV_SYNC_EXTERNAL_CLOCK, /* synchronize to an external clock */
 };
-
-class PacketSource
+struct VideoState; 
+class AVStreamsParser
 {
     public:
-    int subtitle_stream;
-    AVStream *subtitle_st;
-    PacketQueue subtitleq;
+        SDL_Thread *read_tid;
+        int subtitle_stream;
+        AVStream *subtitle_st;
+        PacketQueue subtitleq;
 
-    int audio_stream;
-    AVStream *audio_st;
-    PacketQueue audioq;
+        int audio_stream;
+        AVStream *audio_st;
+        PacketQueue audioq;
 
-    int video_stream;
-    AVStream *video_st;
-    PacketQueue videoq;
+        int video_stream;
+        AVStream *video_st;
+        PacketQueue videoq;
 
-    char filename[1024];
-    int eof;
+        int last_video_stream, last_audio_stream, last_subtitle_stream;
+
+        AVFormatContext *ic;
+
+        char filename[1024];
+        int eof;
     public:
-    static int read_thread(void *arg);
+        static int read_thread(void *arg);
+        int  stream_component_open(VideoState *is, int stream_index);
+        void stream_component_close(VideoState *is, int stream_index);
+        void stream_cycle_channel(VideoState *is, int codec_type);
+        static int audio_open(void *opaque, int64_t wanted_channel_layout, int wanted_nb_channels, int wanted_sample_rate, struct AudioParams *audio_hw_params);
 };
 
 #include "ffdecoder.h"
+#include "control.h"
+#include "display.h"
 
-typedef struct VideoState {
-    SDL_Thread *read_tid;
-    AVInputFormat *iformat;
-    int abort_request;
-    int force_refresh;
-    int paused;
-    int last_paused;
-    int queue_attachments_req;
-    int seek_req;
-    int seek_flags;
-    int64_t seek_pos;
-    int64_t seek_rel;
-    int read_pause_return;
-    AVFormatContext *ic;
-    int realtime;
+// manage the 3 decoder: for video/audio/subtitle
+class DecoderManager{
 
-    Clock audclk;
-    Clock vidclk;
-    Clock extclk;
+    public:
+        AVStreamsParser streamsParser;
 
-    FrameQueue pictq;
-    FrameQueue subpq;
-    FrameQueue sampq;
+        FrameQueue pictureQ;
+        FrameQueue subtitleQ;
+        FrameQueue audioSampleQ;
 
-    AudioDecoder auddec;
-    VideoDecoder viddec;
-    SubtitleDecoder subdec;
+        AudioDecoder audioDecoder;
+        VideoDecoder videoDecoder;
+        SubtitleDecoder subtitleDecoder;
 
-    int viddec_width;
-    int viddec_height;
+        int viddec_width;
+        int viddec_height;
+};
 
+class VideoState {
+    public:
+        VideoState(){ 
+            controller.Set(this);
+        }
+    public:
+        AVInputFormat *iformat;
+        FFPlayController controller;
+        int realtime;
 
-    int av_sync_type;
+        Clock audclk;
+        Clock vidclk;
+        Clock extclk;
 
-    double audio_clock;
-    int audio_clock_serial;
-    double audio_diff_cum; /* used for AV difference average computation */
-    double audio_diff_avg_coef;
-    double audio_diff_threshold;
-    int audio_diff_avg_count;
-    int audio_hw_buf_size;
-    uint8_t silence_buf[SDL_AUDIO_MIN_BUFFER_SIZE];
-    uint8_t *audio_buf;
-    uint8_t *audio_buf1;
-    unsigned int audio_buf_size; /* in bytes */
-    unsigned int audio_buf1_size;
-    int audio_buf_index; /* in bytes */
-    int audio_write_buf_size;
-    struct AudioParams audio_src;
+        DecoderManager decoders;
+
+        FrameQueue& pictq() { return decoders.pictureQ;}
+        FrameQueue& subpq() { return decoders.subtitleQ;}
+        FrameQueue& sampq() { return decoders.audioSampleQ;}
+        AudioDecoder& auddec(){return decoders.audioDecoder;};
+        VideoDecoder& viddec(){return decoders.videoDecoder;};
+        SubtitleDecoder& subdec() {return decoders.subtitleDecoder;};
+
+        int av_sync_type;
+
+        double audio_clock;
+        int audio_clock_serial;
+        double audio_diff_cum; /* used for AV difference average computation */
+        double audio_diff_avg_coef;
+        double audio_diff_threshold;
+        int audio_diff_avg_count;
+        int audio_hw_buf_size;
+        uint8_t silence_buf[SDL_AUDIO_MIN_BUFFER_SIZE];
+        uint8_t *audio_buf;
+        uint8_t *audio_buf1;
+        unsigned int audio_buf_size; /* in bytes */
+        unsigned int audio_buf1_size;
+        int audio_buf_index; /* in bytes */
+        int audio_write_buf_size;
+        struct AudioParams audio_src;
 #if CONFIG_AVFILTER
-    struct AudioParams audio_filter_src;
+        struct AudioParams audio_filter_src;
 #endif
-    struct AudioParams audio_tgt;
-    struct SwrContext *swr_ctx;
-    int frame_drops_early;
-    int frame_drops_late;
+        struct AudioParams audio_tgt;
+        struct SwrContext *swr_ctx;
+        int frame_drops_early;
+        int frame_drops_late;
 
-    ShowMode show_mode;
-    int16_t sample_array[SAMPLE_ARRAY_SIZE];
-    int sample_array_index;
-    int last_i_start;
-    RDFTContext *rdft;
-    int rdft_bits;
-    FFTSample *rdft_data;
-    int xpos;
-    double last_vis_time;
+        ShowMode show_mode;
+        int16_t sample_array[SAMPLE_ARRAY_SIZE];
+        int sample_array_index;
+        int last_i_start;
+        RDFTContext *rdft;
+        int rdft_bits;
+        FFTSample *rdft_data;
+        int xpos;
+        double last_vis_time;
 
-    double frame_timer;
-    double frame_last_returned_time;
-    double frame_last_filter_delay;
-    double max_frame_duration;      // maximum duration of a frame - above this, we consider the jump a timestamp discontinuity
+        double frame_timer;
+        double frame_last_returned_time;
+        double frame_last_filter_delay;
+        double max_frame_duration;      // maximum duration of a frame - above this, we consider the jump a timestamp discontinuity
 #if !CONFIG_AVFILTER
-    struct SwsContext *img_convert_ctx;
+        struct SwsContext *img_convert_ctx;
 #endif
-    struct SwsContext *sub_convert_ctx;
-    SDL_Rect last_display_rect;
+        struct SwsContext *sub_convert_ctx;
+        SDL_Rect last_display_rect;
 
-    int width, height, xleft, ytop;
-    int step;
+        int width, height, xleft, ytop;
+        Display display;
+        int step;
 
 #if CONFIG_AVFILTER
-    int vfilter_idx;
-    AVFilterContext *in_video_filter;   // the first filter in the video chain
-    AVFilterContext *out_video_filter;  // the last filter in the video chain
-    AVFilterContext *in_audio_filter;   // the first filter in the audio chain
-    AVFilterContext *out_audio_filter;  // the last filter in the audio chain
-    AVFilterGraph *agraph;              // audio filter graph
+        int vfilter_idx;
+        AVFilterContext *in_video_filter;   // the first filter in the video chain
+        AVFilterContext *out_video_filter;  // the last filter in the video chain
+        AVFilterContext *in_audio_filter;   // the first filter in the audio chain
+        AVFilterContext *out_audio_filter;  // the last filter in the audio chain
+        AVFilterGraph *agraph;              // audio filter graph
 #endif
 
-    PacketSource packetSource;
-    int last_video_stream, last_audio_stream, last_subtitle_stream;
 
-    SDL_cond *continue_read_thread;
+        SDL_cond *continue_read_thread;
 
-    PacketSource* getPacketSource() { return &packetSource;};
-} VideoState;
+    public:
+        AVStreamsParser* getAVStreamsParser() { return &(decoders.streamsParser);};
+        AVFormatContext *getAVFormatContext() { return getAVStreamsParser()->ic;} 
+        FFPlayController* getController(){ return &controller;}
+        Display* getDisplay() { return &display;}
+};
 
+int get_master_sync_type(VideoState *is); 
+double get_master_clock(VideoState *is);
+void check_external_clock_speed(VideoState *is);
+void do_exit(VideoState *is);
 
-static inline
+    static inline
 int64_t get_valid_channel_layout(int64_t channel_layout, int channels)
 {
     if (channel_layout && av_get_channel_layout_nb_channels(channel_layout) == channels)
@@ -356,13 +383,54 @@ int64_t get_valid_channel_layout(int64_t channel_layout, int channels)
 }
 
 
-#if CONFIG_AVFILTER
-extern const char **vfilters_list;
-extern int nb_vfilters;
-extern char *afilters;
-#endif
-
 #define FF_ALLOC_EVENT   (SDL_USEREVENT)
 #define FF_QUIT_EVENT    (SDL_USEREVENT + 2)
+/* options specified by the user */
+class Options{
+    public:
+        AVInputFormat *file_iformat;
+        const char *input_filename;
+        const char *window_title;
+        int fs_screen_width;
+        int fs_screen_height;
+        int screen_width  = 0;
+        int screen_height = 0;
+        int audio_disable;
+        int video_disable;
+        int subtitle_disable;
+        const char* wanted_stream_spec[AVMEDIA_TYPE_NB] = {0};
+        int seek_by_bytes = -1;
+        int display_disable;
+        int show_status = 1;
+        int av_sync_type = AV_SYNC_AUDIO_MASTER;
+        int64_t start_time = AV_NOPTS_VALUE;
+        int64_t duration = AV_NOPTS_VALUE;
+        int fast = 0;
+        int genpts = 0;
+        int lowres = 0;
+        int decoder_reorder_pts = -1;
+        int autoexit;
+        int exit_on_keydown;
+        int exit_on_mousedown;
+        int loop = 1;
+        int framedrop = -1;
+        int infinite_buffer = -1;
+        ShowMode show_mode = SHOW_MODE_NONE;
+        const char *audio_codec_name;
+        const char *subtitle_codec_name;
+        const char *video_codec_name;
+        double rdftspeed = 0.02;
+        int64_t cursor_last_shown;
+        int cursor_hidden = 0;
+#if CONFIG_AVFILTER
+        const char **vfilters_list = NULL;
+        int nb_vfilters = 0;
+        char *afilters = NULL;
+#endif
+        int autorotate = 1;
+        int is_full_screen;
+        int64_t audio_callback_time;
+};
 
+extern Options gOptions;
 #endif   /* ----- #ifndef FFPLAYER_HEADER_INC  ----- */

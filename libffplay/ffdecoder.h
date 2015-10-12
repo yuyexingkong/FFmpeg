@@ -72,24 +72,26 @@ class VideoState;
 class Decoder {
     public:
         void init(AVCodecContext *avctx, PacketQueue *queue, SDL_cond *empty_queue_cond);
-        int decode_frame(AVFrame *frame, AVSubtitle *sub);
+        int decode_frame(AVFrame *frame);
         void destroy() ;
         void abort(FrameQueue *fq);
+    protected:
         void start(int (*fn)(void *), void *arg);
+    private:
+        AVPacket pkt;
+        AVPacket pkt_temp;
     public:
-    AVPacket pkt;
-    AVPacket pkt_temp;
-    PacketQueue *queue;
-    AVCodecContext *avctx;
-    int pkt_serial;
-    int finished;
-    int packet_pending;
-    SDL_cond *empty_queue_cond;
-    int64_t start_pts;
-    AVRational start_pts_tb;
-    int64_t next_pts;
-    AVRational next_pts_tb;
-    SDL_Thread *decoder_tid;
+        PacketQueue *queue;
+        AVCodecContext *avctx;
+        int pkt_serial;
+        int finished;
+        int packet_pending;
+        SDL_cond *empty_queue_cond;
+        int64_t start_pts;
+        AVRational start_pts_tb;
+        int64_t next_pts;
+        AVRational next_pts_tb;
+        SDL_Thread *decoder_tid;
 };
 
 class AudioDecoder :public Decoder{
@@ -105,6 +107,8 @@ class VideoDecoder :public Decoder{
             start(video_thread, is);
         }
         static int video_thread(void *arg);
+        static int queue_picture(VideoState *is, AVFrame *src_frame, double pts, double duration, int64_t pos, int serial);
+        int get_video_frame(VideoState *is, AVFrame *frame);
 };
 
 class SubtitleDecoder :public Decoder{
