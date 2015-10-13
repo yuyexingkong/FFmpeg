@@ -530,10 +530,10 @@ retry:
             if (delay > 0 && time - is->frame_timer > AV_SYNC_THRESHOLD_MAX)
                 is->frame_timer = time;
 
-            SDL_LockMutex(is->pictq().mutex);
+            is->pictq().mutex.lock();
             if (!redisplay && !isnan(vp->pts))
                 update_video_pts(is, vp->pts, vp->pos, vp->serial);
-            SDL_UnlockMutex(is->pictq().mutex);
+            is->pictq().mutex.unlock();
 
             if (is->pictq().nb_remaining() > 1) {
                 Frame *nextvp = is->pictq().peek_next();
@@ -649,10 +649,10 @@ void Display::alloc_picture(VideoState *is)
         do_exit(is);
     }
 
-    SDL_LockMutex(pictq.mutex);
+    pictq.mutex.lock();
     vp->allocated = 1;
-    SDL_CondSignal(pictq.cond);
-    SDL_UnlockMutex(pictq.mutex);
+    pictq.cond.signal();
+    pictq.mutex.unlock();
 }
 
 

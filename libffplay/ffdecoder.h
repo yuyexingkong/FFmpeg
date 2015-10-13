@@ -66,12 +66,14 @@ extern "C"{
 }
 
 
+#include "ptr.h"
+#include "threads.h"
 class PacketQueue;
 class FrameQueue;
 class VideoState;
 class Decoder {
     public:
-        void init(AVCodecContext *avctx, PacketQueue *queue, SDL_cond *empty_queue_cond);
+        void init(AVCodecContext *avctx, PacketQueue *queue, Cond *empty_queue_cond);
         int decode_frame(AVFrame *frame);
         void destroy() ;
         void abort(FrameQueue *fq);
@@ -86,23 +88,23 @@ class Decoder {
         int pkt_serial;
         int finished;
         int packet_pending;
-        SDL_cond *empty_queue_cond;
+        user_ptr<Cond> empty_queue_cond;
         int64_t start_pts;
         AVRational start_pts_tb;
         int64_t next_pts;
         AVRational next_pts_tb;
-        SDL_Thread *decoder_tid;
+        Thread decoder_thread;
 };
 
 class AudioDecoder :public Decoder{
     public:
-        void init(AVCodecContext *avctx, PacketQueue *queue, SDL_cond *empty_queue_cond, VideoState* is);
+        void init(AVCodecContext *avctx, PacketQueue *queue, Cond *empty_queue_cond, VideoState* is);
         static int audio_thread(void *arg);
 };
 
 class VideoDecoder :public Decoder{
     public:
-        void init(AVCodecContext *avctx, PacketQueue *queue, SDL_cond *empty_queue_cond, VideoState* is){
+        void init(AVCodecContext *avctx, PacketQueue *queue, Cond *empty_queue_cond, VideoState* is){
             Decoder::init(avctx, queue, empty_queue_cond);
             start(video_thread, is);
         }
@@ -113,7 +115,7 @@ class VideoDecoder :public Decoder{
 
 class SubtitleDecoder :public Decoder{
     public:
-        void init(AVCodecContext *avctx, PacketQueue *queue, SDL_cond *empty_queue_cond, VideoState* is){
+        void init(AVCodecContext *avctx, PacketQueue *queue, Cond *empty_queue_cond, VideoState* is){
             Decoder::init(avctx, queue, empty_queue_cond);
             start(subtitle_thread, is);
         }

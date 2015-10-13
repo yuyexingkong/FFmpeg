@@ -30,7 +30,7 @@ void FFPlayController::stream_seek(int64_t pos, int64_t rel, int seek_by_bytes)
         if (seek_by_bytes)
             ctrl->seek_flags |= AVSEEK_FLAG_BYTE;
         ctrl->seek_req = 1;
-        SDL_CondSignal(is->continue_read_thread);
+        is->continue_read_thread.signal();
     }
 }
 

@@ -32,7 +32,7 @@ double get_master_clock(VideoState *is);
 extern AVPacket flush_pkt;
 extern unsigned sws_flags;
 
-void Decoder::init(AVCodecContext *avctx, PacketQueue *queue, SDL_cond *empty_queue_cond) {
+void Decoder::init(AVCodecContext *avctx, PacketQueue *queue, Cond *empty_queue_cond) {
     Decoder *d = this;
     memset(d, 0, sizeof(Decoder));
     d->avctx = avctx;
@@ -55,7 +55,7 @@ int Decoder::decode_frame(AVFrame *frame) {
             AVPacket pkt;
             do {
                 if (d->queue->nb_packets == 0)
-                    SDL_CondSignal(d->empty_queue_cond);
+                    d->empty_queue_cond ->signal();
                 if (d->queue->get(&pkt, 1, &d->pkt_serial) < 0)
                     return -1;
                 if (pkt.data == flush_pkt.data) {
@@ -141,8 +141,7 @@ void Decoder::abort(FrameQueue *fq)
     Decoder *d = this;
     d->queue->abort();
     fq->signal();
-    SDL_WaitThread(d->decoder_tid, NULL);
-    d->decoder_tid = NULL;
+    d->decoder_thread.join();
     d->queue->flush();
 }
 
@@ -150,10 +149,10 @@ void Decoder::start(int (*fn)(void *), void *arg)
 {
     Decoder *d = this;
     d->queue->start();
-    d->decoder_tid = SDL_CreateThread(fn, arg);
+    d->decoder_thread.start(fn, arg);
 }
 
-void AudioDecoder::init(AVCodecContext *avctx, PacketQueue *queue, SDL_cond *empty_queue_cond, VideoState* is)
+void AudioDecoder::init(AVCodecContext *avctx, PacketQueue *queue, Cond *empty_queue_cond, VideoState* is)
 {
     Decoder::init(avctx, queue, empty_queue_cond);
     AVStreamsParser* ps = is->getAVStreamsParser();
@@ -499,17 +498,17 @@ int VideoDecoder::queue_picture(VideoState *is, AVFrame *src_frame, double pts, 
         SDL_PushEvent(&event);
 
         /* wait until the picture is allocated */
-        SDL_LockMutex(is->pictq().mutex);
+        is->pictq().mutex.lock();
         while (!vp->allocated && !ps->videoq.abort_request) {
-            SDL_CondWait(is->pictq().cond, is->pictq().mutex);
+            is->pictq().cond.wait(is->pictq().mutex);
         }
         /* if the queue is aborted, we have to pop the pending ALLOC event or wait for the allocation to complete */
         if (ps->videoq.abort_request && SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_EVENTMASK(FF_ALLOC_EVENT)) != 1) {
             while (!vp->allocated && !is->getController()->abort_request) {
-                SDL_CondWait(is->pictq().cond, is->pictq().mutex);
+                is->pictq().cond.wait( is->pictq().mutex);
             }
         }
-        SDL_UnlockMutex(is->pictq().mutex);
+        is->pictq().mutex.unlock();
 
         if (ps->videoq.abort_request)
             return -1;

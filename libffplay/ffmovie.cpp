@@ -25,7 +25,7 @@ void movie_close(VideoState *is)
     /* XXX: use a special url_shutdown call to abort parse cleanly */
     is->getController()->abort_request = 1;
     AVStreamsParser* ps = is->getAVStreamsParser();
-    SDL_WaitThread(ps->read_tid, NULL);
+    ps->read_thread.join();
     ps->videoq.destroy();
     ps->audioq.destroy();
     ps->subtitleq.destroy();
@@ -34,11 +34,12 @@ void movie_close(VideoState *is)
     is->pictq().destory();
     is->sampq().destory();
     is->subpq().destory();
-    SDL_DestroyCond(is->continue_read_thread);
+    is->continue_read_thread.destroy();
 #if !CONFIG_AVFILTER
     sws_freeContext(is->img_convert_ctx);
 #endif
     sws_freeContext(is->sub_convert_ctx);
+    is->~VideoState();
     av_free(is);
 }
 
@@ -47,6 +48,7 @@ VideoState *movie_open(const char *filename, AVInputFormat *iformat)
     VideoState *is;
 
     is = (VideoState *) av_mallocz(sizeof(VideoState));
+    is = new (is)VideoState();
     if (!is)
         return NULL;
     AVStreamsParser* ps = is->getAVStreamsParser();
@@ -67,15 +69,15 @@ VideoState *movie_open(const char *filename, AVInputFormat *iformat)
     ps->audioq.init();
     ps->subtitleq.init();
 
-    is->continue_read_thread = SDL_CreateCond();
+    is->continue_read_thread.create() ;
 
     is->vidclk.init_clock(&ps->videoq.serial);
     is->audclk.init_clock(&ps->audioq.serial);
     is->extclk.init_clock(&is->extclk.serial);
     is->audio_clock_serial = -1;
     is->av_sync_type = gOptions.av_sync_type;
-    ps->read_tid     = SDL_CreateThread(AVStreamsParser::read_thread, is);
-    if (!ps->read_tid) {
+    ps->read_thread.start(AVStreamsParser::read_thread_func, is);
+    if (!(bool)ps->read_thread) {
 fail:
         movie_close(is);
         return NULL;

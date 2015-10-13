@@ -37,24 +37,24 @@ typedef struct MyAVPacketList {
 
 class PacketQueue {
     public:
-    MyAVPacketList *first_pkt, *last_pkt;
-    int nb_packets;
-    int size;
-    int abort_request;
-    int serial;
-    SDL_mutex *mutex;
-    SDL_cond *cond;
+        MyAVPacketList *first_pkt, *last_pkt;
+        int nb_packets;
+        int size;
+        int abort_request;
+        int serial;
+        SDL_mutex *mutex;
+        SDL_cond *cond;
     public:
-    //PacketQueue(){init();  }
-    int put_private(AVPacket *pkt);
-    int put(AVPacket *pkt);
-    int get(AVPacket *pkt, int block, int *serial);
-    void start();
-    void abort();
-    void destroy();
-    void flush();
-    void init();
-    int put_nullpacket(int stream_index);
+        //PacketQueue(){init();  }
+        int put_private(AVPacket *pkt);
+        int put(AVPacket *pkt);
+        int get(AVPacket *pkt, int block, int *serial);
+        void start();
+        void abort();
+        void destroy();
+        void flush();
+        void init();
+        int put_nullpacket(int stream_index);
 };
 
 #define VIDEO_PICTURE_QUEUE_SIZE 3
@@ -80,16 +80,16 @@ class FrameQueue {
         int nb_remaining();
         int64_t last_pos();
     public:
-    Frame queue[FRAME_QUEUE_SIZE];
-    int rindex;
-    int windex;
-    int size;
-    int max_size;
-    int keep_last;
-    int rindex_shown;
-    SDL_mutex *mutex;
-    SDL_cond *cond;
-    PacketQueue *pktq;
+        Frame queue[FRAME_QUEUE_SIZE];
+        int rindex;
+        int windex;
+        int size;
+        int max_size;
+        int keep_last;
+        int rindex_shown;
+        SDL_mutex *mutex;
+        SDL_cond *cond;
+        PacketQueue *pktq;
 } ;
 
 #endif   /* ----- #ifndef FFPLAYER_QUEUE_HEADER_INC  ----- */

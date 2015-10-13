@@ -24,6 +24,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include "display.h"
+#include "ptr.h"
 
 class VideoState;
 class FFPlayController 
@@ -52,6 +53,6 @@ class FFPlayController
         int64_t seek_rel;
         int read_pause_return;
     private:
-        VideoState* is;
+        user_ptr<VideoState> is;
 };
 #endif   /* ----- #ifndef FFPLAY_CONTROL_INC  ----- */

@@ -60,7 +60,6 @@ extern "C"{
 #endif
 
 #include <SDL.h>
-#include <SDL_thread.h>
 
 #include "cmdutils.h"
 
@@ -91,17 +90,18 @@ typedef struct MyAVPacketList {
     int serial;
 } MyAVPacketList;
 
-
+#include "threads.h"
 class PacketQueue {
     public:
-        MyAVPacketList *first_pkt, *last_pkt;
-        int nb_packets;
-        int size;
-        int abort_request;
-        int serial;
-        SDL_mutex *mutex;
-        SDL_cond *cond;
+        MyAVPacketList *first_pkt = nullptr, *last_pkt = nullptr;
+        int nb_packets = 0;
+        int size = 0;
+        int abort_request = 0;
+        int serial = 0;
+        Mutex mutex;
+        Cond cond;
     public:
+        PacketQueue():mutex(),cond(){}
         //PacketQueue(){init();  }
         int put_private(AVPacket *pkt);
         int put(AVPacket *pkt);
@@ -121,7 +121,7 @@ class PacketQueue {
 
 class FrameQueue {
     public:
-        FrameQueue(){}
+        FrameQueue():mutex(), cond(){}
     public:
         int init( PacketQueue *pktq, int max_size, int keep_last);
         void destory();
@@ -138,15 +138,15 @@ class FrameQueue {
         int64_t last_pos();
     public:
         Frame queue[FRAME_QUEUE_SIZE];
-        int rindex;
-        int windex;
-        int size;
-        int max_size;
-        int keep_last;
-        int rindex_shown;
-        SDL_mutex *mutex;
-        SDL_cond *cond;
-        PacketQueue *pktq;
+        int rindex =0;
+        int windex =0;
+        int size =0;
+        int max_size = 0;
+        int keep_last = 0;
+        int rindex_shown = 0;
+        Mutex mutex;
+        Cond cond;
+        PacketQueue *pktq = nullptr;
 } ;
 
 typedef enum {
@@ -228,7 +228,7 @@ struct VideoState;
 class AVStreamsParser
 {
     public:
-        SDL_Thread *read_tid;
+        Thread read_thread;
         int subtitle_stream;
         AVStream *subtitle_st;
         PacketQueue subtitleq;
@@ -248,7 +248,7 @@ class AVStreamsParser
         char filename[1024];
         int eof;
     public:
-        static int read_thread(void *arg);
+        static int read_thread_func(void *arg);
         int  stream_component_open(VideoState *is, int stream_index);
         void stream_component_close(VideoState *is, int stream_index);
         void stream_cycle_channel(VideoState *is, int codec_type);
@@ -359,7 +359,7 @@ class VideoState {
 #endif
 
 
-        SDL_cond *continue_read_thread;
+        Cond continue_read_thread;
 
     public:
         AVStreamsParser* getAVStreamsParser() { return &(decoders.streamsParser);};

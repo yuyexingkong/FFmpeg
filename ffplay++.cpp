@@ -37,7 +37,6 @@ Options gOptions;
 AVPacket flush_pkt;
 
 
-void free_picture(Frame *vp);
 void do_exit(VideoState *is);
 
 static void sigterm_handler(int sig)
